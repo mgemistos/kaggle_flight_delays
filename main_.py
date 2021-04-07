@@ -29,4 +29,20 @@ X_test = test_df.values
 X_train_part, X_valid, y_train_part, y_valid = train_test_split(X_train, y_train,
                                                                 test_size=0.3,
                                                                 random_state=17)
-print(X_train_part.size," ",y_valid.size," ",train_df.size)
+print(train_df.shape)
+
+ctb = CatBoostClassifier(task_type = 'GPU', random_seed = 17, silent=True)
+ctb.fit(X_train_part, y_train_part, cat_features = categorical_feat_idx)
+ctb_valid_pred = ctb.predict_proba(X_valid)[:,1]
+score_part = roc_auc_score(y_valid, ctb_valid_pred)
+
+ctb.fit(X_train, y_train, cat_features = categorical_feat_idx)
+ctb_test_pred = ctb.predict_proba(X_test)[:, 1]
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+
+    sample_sub = pd.read_csv(PATH_TO_DATA / 'sample_submission.csv',
+                             index_col='id')
+    sample_sub['dep_delayed_15min'] = ctb_test_pred
+    sample_sub.to_csv('ctb_pred.csv')
